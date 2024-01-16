@@ -90,7 +90,7 @@ const builder = new addonBuilder(manifest);
 builder.defineStreamHandler(function(args) {
 	console.log(args);
     if (true) {
-    	return rutracker.login({ username: process.env.USER, password: process.env.PWD })
+    	return rutracker.login({ username: process.env.RUTRACKER_USER, password: process.env.RUTRACKER_PWD })
 		  .then(() => rutracker.getMagnetLink(args.id))
 		  .then(magnet => {
 		  	let t = dataset.filter(e => e.id == args.id)[0];
@@ -113,7 +113,7 @@ builder.defineStreamHandler(function(args) {
 builder.defineCatalogHandler(function(args, cb) {
 
     // return Promise.resolve({ metas: metas })
-    return rutracker.login({ username: process.env.USER, password: process.env.PWD })
+    return rutracker.login({ username: process.env.RUTRACKER_USER, password: process.env.RUTRACKER_PWD })
 	  .then(() => rutracker.search({ query: 'nba', sort: 'registered' }))
 	  .then(function(torrents) {
 	  	dataset = torrents.filter(e => e.category.includes('NBA'));
