@@ -107,7 +107,7 @@ builder.defineStreamHandler(function(args) {
     }
 })
 
- const LOGO_API_URL = "https://d376-92-40-184-158.ngrok-free.app"
+ const LOGO_API_URL = "https://jakubkocvara-python.adaptable.app"
 // const LOGO_API_URL = "127.0.0.1:8000"
 
 builder.defineCatalogHandler(function(args, cb) {
