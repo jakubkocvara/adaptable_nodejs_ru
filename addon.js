@@ -107,38 +107,66 @@ builder.defineStreamHandler(function(args) {
     }
 })
 
- const LOGO_API_URL = "https://jakubkocvara-python.adaptable.app"
-// const LOGO_API_URL = "127.0.0.1:8000"
+const LOGO_API_URL = "https://jakubkocvara-python.adaptable.app"
+function reverseDate(x) {
+	return x.split('.').reverse().join();
+}
+
+function compare( a, b ) {
+	a_r = reverseDate(a.game_date);
+	b_r = reverseDate(b.game_date);
+	if ( a_r > b_r ){
+	return -1;
+	}
+	if ( b_r < a_r ){
+	return 1;
+	}
+	return 0;
+}
 
 builder.defineCatalogHandler(function(args, cb) {
 
     // return Promise.resolve({ metas: metas })
-    return rutracker.login({ username: process.env.RUTRACKER_USER, password: process.env.RUTRACKER_PWD })
-	  .then(() => rutracker.search({ query: 'nba', sort: 'registered' }))
+    return rutracker.login({ username: 'vonbahnhofk2', password: 'matrix123' })
+	  .then(() => rutracker.search({ query: 'nba', sort: 'seeds' }))
 	  .then(function(torrents) {
 	  	dataset = torrents.filter(e => e.category.includes('NBA'));
 	  	// console.log(dataset);
 		return dataset;
 	  }).then(function(torrents) {
-
-	  	return torrents.map((torrent) => {
+	  	torrent_obj = {};
+	  	torrents.forEach(function(torrent) {
 	  		let title_split = torrent.title.split(/\/|\[/);
 	  		let team_names = title_split[3].split('@').map((t) => {
 	  			let str_arr = t.trim().toLowerCase().split(' ');
 	  			let team_key = str_arr[str_arr.length - 1];
 	  			return teams[team_key];
 	  		});
-	  		return {
-		  		id: torrent.id,
+	  		let game_date = title_split[2].trim();
+	  		let key = [team_names[0], team_names[1], game_date].join('_');
+	  		if (!(torrent_obj[key] && torrent_obj[key].seeds > torrent.seeds)) {	  			
+		  		torrent_obj[key] = {
+		  			away_team: team_names[0],
+		  			home_team: team_names[1],
+		  			game_date: game_date,
+		  			torrent_id: torrent.id,
+		  			seeds: torrent.seeds
+		  		};	
+	  		}
+	  	});
+
+  		return Object.values(torrent_obj).sort(compare).map((obj) => {
+  			return {
+		  		id: obj.torrent_id,
 		  		type: 'movie',
-		  		name: title_split[2] + ' / ' + team_names[0].toUpperCase() + ' @ ' + team_names[1].toUpperCase(),
-	        	poster: `${LOGO_API_URL}/vertical_logo/${team_names[0]}/${team_names[1]}?q=${title_split[2]} | S:${torrent.seeds}`
+		  		name: obj.game_date + ' / ' + obj.away_team.toUpperCase() + ' @ ' + obj.home_team.toUpperCase(),
+	        	poster: `${LOGO_API_URL}/vertical_logo/${obj.away_team}/${obj.home_team}?q=${obj.game_date} | S:${obj.seeds}`
 	        }
-	  	})
+  		});
 	  }).then(function(torrents) {
 	  	return {metas: torrents}
 	  });
-})
+});
 
 builder.defineMetaHandler(function(args) {
 	let t = dataset.filter(e => e.id == args.id)[0];
