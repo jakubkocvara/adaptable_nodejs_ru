@@ -4,11 +4,11 @@ const RutrackerApi = require('rutracker-api-with-proxy');
 const rutracker = new RutrackerApi();
 
 const manifest = { 
-    "id": "org.stremio.nba-addon",
+    "id": "org.stremio.rutrackera-adaptable-addon",
     "version": "1.0.0",
 
-    "name": "NBA Addon",
-    "description": "NBA Addon",
+    "name": "Rutracker Addon",
+    "description": "Rutracker Addon",
 
     // set what type of resources we will return
     "resources": [
@@ -23,7 +23,13 @@ const manifest = {
     "catalogs": [
         {
             type: 'movie',
-            id: 'nba-addon'
+            id: 'rutracker-addon',
+		    extra: [
+		      {
+		        "name": "search",
+		        "isRequired": true
+		      }
+		    ]
         }
     ],
 
@@ -31,39 +37,6 @@ const manifest = {
     // "idPrefixes": [ "tt" ]
 
 };
-
-teams = {
-    "hawks": "atl",
-    "nets": "bkn",
-    "celtics": "bos",
-    "hornets": "cha",
-    "bulls": "chi",
-    "cavaliers": "cle",
-    "mavericks": "dal",
-    "nuggets": "den",
-    "pistons": "det",
-    "warriors": "gsw",
-    "rockets": "hou",
-    "pacers": "ind",
-    "clippers": "lac",
-    "lakers": "lal",
-    "grizzlies": "mem",
-    "heat": "mia",
-    "bucks": "mil",
-    "timberwolves": "min",
-    "pelicans": "nop",
-    "knicks": "nyk",
-    "thunder": "okc",
-    "magic": "orl",
-    "76ers": "phi",
-    "suns": "phx",
-    "blazers": "por",
-    "kings": "sac",
-    "spurs": "sas",
-    "raptors": "tor",
-    "jazz": "uta",
-    "wizards": "was"
-}
 
 let dataset;
 
@@ -94,7 +67,7 @@ builder.defineStreamHandler(function(args) {
 		  .then(() => rutracker.getMagnetLink(args.id))
 		  .then(magnet => {
 		  	let t = dataset.filter(e => e.id == args.id)[0];
-		  	let title = t.title.split(/\/|\[/).slice(2,4).join();
+		  	let title = t.title;
 		  	let seeds = t.seeds;
 		  	let leeches = t.leeches;
 		  	let size = (t.size / 1000000000).toFixed(2) + ' GB'
@@ -107,7 +80,6 @@ builder.defineStreamHandler(function(args) {
     }
 })
 
-const LOGO_API_URL = "https://jakubkocvara-python.adaptable.app"
 function reverseDate(x) {
 	return x.split('.').reverse().join();
 }
@@ -126,64 +98,37 @@ function compare( a, b ) {
 
 builder.defineCatalogHandler(function(args, cb) {
 
-    // return Promise.resolve({ metas: metas })
-    return rutracker.login({ username: 'vonbahnhofk2', password: 'matrix123' })
-	  .then(() => rutracker.search({ query: 'nba', sort: 'seeds' }))
+	if (args.extra.search) {
+		return rutracker.login({ username: process.env.RUTRACKER_USER, password: process.env.RUTRACKER_PWD })
+	  .then(() => rutracker.search({ query: args.extra.search, sort: 'seeds' }))
 	  .then(function(torrents) {
-	  	dataset = torrents.filter(e => e.category.includes('NBA'));
-	  	// console.log(dataset);
-		return dataset;
-	  }).then(function(torrents) {
-	  	torrent_obj = {};
-	  	torrents.forEach(function(torrent) {
-	  		let title_split = torrent.title.split(/\/|\[/);
-	  		let team_names = title_split[3].split('@').map((t) => {
-	  			let str_arr = t.trim().toLowerCase().split(' ');
-	  			let team_key = str_arr[str_arr.length - 1];
-	  			return teams[team_key];
-	  		});
-	  		let game_date = title_split[2].trim();
-	  		let key = [team_names[0], team_names[1], game_date].join('_');
-	  		if (!(torrent_obj[key] && torrent_obj[key].seeds > torrent.seeds)) {	  			
-		  		torrent_obj[key] = {
-		  			away_team: team_names[0],
-		  			home_team: team_names[1],
-		  			game_date: game_date,
-		  			torrent_id: torrent.id,
-		  			seeds: torrent.seeds
-		  		};	
-	  		}
-	  	});
-
-  		return Object.values(torrent_obj).sort(compare).map((obj) => {
+	  	dataset = torrents;
+	  	console.log(torrents);
+  		return torrents.map((t) => {
   			return {
-		  		id: obj.torrent_id,
+		  		id: t.id,
 		  		type: 'movie',
-		  		name: obj.game_date + ' / ' + obj.away_team.toUpperCase() + ' @ ' + obj.home_team.toUpperCase(),
-	        	poster: `${LOGO_API_URL}/vertical_logo/${obj.away_team}/${obj.home_team}?q=${obj.game_date} | S:${obj.seeds}`
+		  		name: 'S: ' + t.seeds + ' | ' + t.registered + ' | ' + t.title,
 	        }
   		});
 	  }).then(function(torrents) {
 	  	return {metas: torrents}
 	  });
-});
+	} else {
+		return Promise.resolve({ metas: [] });
+	}
+
+    // return Promise.resolve({ metas: metas })
+    
+})
 
 builder.defineMetaHandler(function(args) {
 	let t = dataset.filter(e => e.id == args.id)[0];
 
-    if (t) {        
-  		let title_split = t.title.split(/\/|\[/);
-  		let team_names = title_split[3].split('@').map((t) => {
-  			let str_arr = t.trim().toLowerCase().split(' ');
-  			let team_key = str_arr[str_arr.length - 1];
-  			return teams[team_key];
-  		});
+    if (t) {
         const metaObj = {
             id: args.id,
-            name: title_split.slice(2,4).join(),
-            releaseInfo: '2024',
-            poster: `${LOGO_API_URL}/vertical_logo/${team_names[0]}/${team_names[1]}`,
-            background: `${LOGO_API_URL}/horizontal_logo/${team_names[0]}/${team_names[1]}`,
+            name: t.title,
             type: 'movie'
         }
         return Promise.resolve({ meta: metaObj })
